@@ -1,0 +1,411 @@
+<!doctype html>
+<!-- The Time Machine GitHub pages theme was designed and developed by Jon Rohan, on Feb 7, 2012. -->
+<!-- Follow him for fun. http://twitter.com/jonrohan. Tail his code on http://github.com/jonrohan -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  <link rel="stylesheet" href="stylesheets/stylesheet.css" media="screen"/>
+  <link rel="stylesheet" href="stylesheets/pygment_trac.css"/>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+  <script type="text/javascript" src="javascripts/script.js"></script>
+
+  <title>Mongoosastic</title>
+  <meta name="description" content="Index mongoose models into elastic search for kickass searching">
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+</head>
+
+<body>
+
+  <div class="wrapper">
+    <header>
+      <h1 class="title">Mongoosastic</h1>
+    </header>
+    <div id="container">
+      <p class="tagline">Index mongoose models into elastic search for kickass searching</p>
+      <div id="main" role="main">
+        <div class="download-bar">
+        <div class="inner">
+          <a href="https://github.com/jamescarr/mongoosastic/tarball/master" class="download-button tar"><span>Download</span></a>
+          <a href="https://github.com/jamescarr/mongoosastic/zipball/master" class="download-button zip"><span>Download</span></a>
+          <a href="https://github.com/jamescarr/mongoosastic" class="code">View Mongoosastic on GitHub</a>
+        </div>
+        <span class="blc"></span><span class="trc"></span>
+        </div>
+        <article class="markdown-body">
+          <h1>Mongoosastic</h1>
+
+<p><a href="http://travis-ci.org/jamescarr/mongoosastic"><img src="https://secure.travis-ci.org/jamescarr/mongoosastic.png?branch=master" alt="Build
+Status"></a></p>
+
+<p>A <a href="http://mongoosejs.com/">mongoose</a> plugin that indexes models into <a href="http://www.elasticsearch.org/">elasticsearch</a>. I kept
+running into cases where I needed full text search capabilities in my
+mongodb based models only to discover mongodb has none. In addition to
+full text search, I also needed the ability to filter ranges of data
+points in the searches and even highlight matches. For these reasons,
+elastic search was a perfect fit and hence this project. </p>
+
+<h2>Installation</h2>
+
+<div class="highlight">
+<pre>npm install mongoosastic
+
+</pre>
+</div>
+
+
+<p>Or add it to your package.json</p>
+
+<h2>Usage</h2>
+
+<p>To make a model indexed into elastic search simply add the plugin.</p>
+
+<div class="highlight">
+<pre><span class="kd">var</span> <span class="nx">mongoose</span>     <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'mongoose'</span><span class="p">)</span>
+  <span class="p">,</span> <span class="nx">mongoosastic</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'mongoosastic'</span><span class="p">)</span>
+  <span class="p">,</span> <span class="nx">Schema</span>       <span class="o">=</span> <span class="nx">mongoose</span><span class="p">.</span><span class="nx">Schema</span>
+
+<span class="kd">var</span> <span class="nx">User</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Schema</span><span class="p">({</span>
+    <span class="nx">name</span><span class="o">:</span> <span class="nb">String</span>
+  <span class="p">,</span> <span class="nx">email</span><span class="o">:</span> <span class="nb">String</span>
+  <span class="p">,</span> <span class="nx">city</span><span class="o">:</span> <span class="nb">String</span>
+<span class="p">})</span>
+
+<span class="nx">User</span><span class="p">.</span><span class="nx">plugin</span><span class="p">(</span><span class="nx">mongoosastic</span><span class="p">)</span>
+</pre>
+</div>
+
+
+<p>This will by default simply use the pluralization of the model name as the index 
+while using the model name itself as the type. So if you create a new
+User object and save it, you can see it by navigating to
+http://localhost:9200/users/user/_search (this assumes elasticsearch is
+running locally on port 9200). </p>
+
+<p>The default behavior is all fields get indexed into elasticsearch. This can be a little wasteful especially considering that
+the document is now just being duplicated between mongodb and
+elasticsearch so you should consider opting to index only certain fields by specifying ''es_indexed'' on the 
+fields you want to store:</p>
+
+<div class="highlight">
+<pre><span class="kd">var</span> <span class="nx">User</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Schema</span><span class="p">({</span>
+    <span class="nx">name</span><span class="o">:</span> <span class="p">{</span><span class="nx">type</span><span class="o">:</span><span class="nb">String</span><span class="p">,</span> <span class="nx">es_indexed</span><span class="o">:</span><span class="kc">true</span><span class="p">}</span>
+  <span class="p">,</span> <span class="nx">email</span><span class="o">:</span> <span class="nb">String</span>
+  <span class="p">,</span> <span class="nx">city</span><span class="o">:</span> <span class="nb">String</span>
+<span class="p">})</span>
+
+<span class="nx">User</span><span class="p">.</span><span class="nx">plugin</span><span class="p">(</span><span class="nx">mongoosastic</span><span class="p">)</span>
+</pre>
+</div>
+
+
+<p>In this case only the name field
+will be indexed for searching. </p>
+
+<p>Finally, adding the plugin will add a new method to the model called
+search which can be used to make simple to complex searches. </p>
+
+<div class="highlight">
+<pre>
+<span class="nx">User</span><span class="p">.</span><span class="nx">search</span><span class="p">({</span><span class="nx">query</span><span class="o">:</span><span class="s2">"john"</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// results here</span>
+<span class="p">});</span>
+
+</pre>
+</div>
+
+
+<h3>Indexing An Existing Collection</h3>
+
+<p>Already have a mongodb collection that you'd like to index using this
+plugin? No problem! Simply call the synchronize method on your model to
+open a mongoose stream and start indexing documents individually. </p>
+
+<div class="highlight">
+<pre><span class="kd">var</span> <span class="nx">BookSchema</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Schema</span><span class="p">({</span>
+  <span class="nx">title</span><span class="o">:</span> <span class="nb">String</span>
+<span class="p">});</span>
+<span class="nx">BookSchema</span><span class="p">.</span><span class="nx">plugin</span><span class="p">(</span><span class="nx">mongoosastic</span><span class="p">);</span>
+
+<span class="kd">var</span> <span class="nx">Book</span> <span class="o">=</span> <span class="nx">mongoose</span><span class="p">.</span><span class="nx">model</span><span class="p">(</span><span class="s1">'Book'</span><span class="p">,</span> <span class="nx">BookSchema</span><span class="p">)</span>
+  <span class="p">,</span> <span class="nx">stream</span> <span class="o">=</span> <span class="nx">Book</span><span class="p">.</span><span class="nx">synchronize</span><span class="p">()</span>
+  <span class="p">,</span> <span class="nx">count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+<span class="nx">stream</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'data'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">doc</span><span class="p">){</span>
+  <span class="nx">count</span><span class="o">++</span><span class="p">;</span>
+<span class="p">});</span>
+<span class="nx">stream</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'close'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(){</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'indexed '</span> <span class="o">+</span> <span class="nx">count</span> <span class="o">+</span> <span class="s1">' documents!'</span><span class="p">);</span>
+<span class="p">});</span>
+<span class="nx">stream</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'error'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">){</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+<span class="p">});</span>
+</pre>
+</div>
+
+
+<p>One caveat... this is kinda slow for now. Use with care.</p>
+
+<h3>Per Field Options</h3>
+
+<p>Schemas can be configured to have special options per field. These match
+with the existing <a href="http://www.elasticsearch.org/guide/reference/mapping/core-types.html">field mapping configurations</a> defined by elasticsearch with the only difference being they are all prefixed by "es_". </p>
+
+<p>So for example. If you wanted to index a book model and have the boost
+for title set to 2.0 (giving it greater priority when searching) you'd
+define it as follows:</p>
+
+<div class="highlight">
+<pre><span class="kd">var</span> <span class="nx">BookSchema</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Schema</span><span class="p">({</span>
+    <span class="nx">title</span><span class="o">:</span> <span class="p">{</span><span class="nx">type</span><span class="o">:</span><span class="nb">String</span><span class="p">,</span> <span class="nx">es_boost</span><span class="o">:</span><span class="mf">2.0</span><span class="p">}</span>
+  <span class="p">,</span> <span class="nx">author</span><span class="o">:</span> <span class="p">{</span><span class="nx">type</span><span class="o">:</span><span class="nb">String</span><span class="p">,</span> <span class="nx">es_null_value</span><span class="o">:</span><span class="s2">"Unknown Author"</span><span class="p">}</span>
+  <span class="p">,</span> <span class="nx">publicationDate</span><span class="o">:</span> <span class="p">{</span><span class="nx">type</span><span class="o">:</span><span class="nb">Date</span><span class="p">,</span> <span class="nx">es_type</span><span class="o">:</span><span class="s1">'date'</span><span class="p">}</span> 
+<span class="p">});</span> 
+
+</pre>
+</div>
+
+
+<p>This example uses a few other mapping fields... such as null_value and
+type (which overrides whatever value the schema type is, useful if you
+want stronger typing such as float).</p>
+
+<h4>Creating Mappings for These Features</h4>
+
+<p>The way this can be mapped in elastic search is by creating a mapping
+for the index the model belongs to. Currently to the best of my
+knowledge mappings are create once when creating an index and can only
+be modified by destroying the index. </p>
+
+<p>As such, creating the mapping is a one time operation and can be done as
+follows (using the BookSchema as an example):</p>
+
+<div class="highlight">
+<pre><span class="kd">var</span> <span class="nx">BookSchema</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Schema</span><span class="p">({</span>
+    <span class="nx">title</span><span class="o">:</span> <span class="p">{</span><span class="nx">type</span><span class="o">:</span><span class="nb">String</span><span class="p">,</span> <span class="nx">es_boost</span><span class="o">:</span><span class="mf">2.0</span><span class="p">}</span>
+  <span class="p">,</span> <span class="nx">author</span><span class="o">:</span> <span class="p">{</span><span class="nx">type</span><span class="o">:</span><span class="nb">String</span><span class="p">,</span> <span class="nx">es_null_value</span><span class="o">:</span><span class="s2">"Unknown Author"</span><span class="p">}</span>
+  <span class="p">,</span> <span class="nx">publicationDate</span><span class="o">:</span> <span class="p">{</span><span class="nx">type</span><span class="o">:</span><span class="nb">Date</span><span class="p">,</span> <span class="nx">es_type</span><span class="o">:</span><span class="s1">'date'</span><span class="p">}</span> 
+
+<span class="nx">BookSchema</span><span class="p">.</span><span class="nx">plugin</span><span class="p">(</span><span class="nx">mongoosastic</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">Book</span> <span class="o">=</span> <span class="nx">mongoose</span><span class="p">.</span><span class="nx">model</span><span class="p">(</span><span class="s1">'Book'</span><span class="p">,</span> <span class="nx">BookSchema</span><span class="p">);</span>
+<span class="nx">Book</span><span class="p">.</span><span class="nx">createMapping</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">mapping</span><span class="p">){</span>
+  <span class="c1">// do neat things here</span>
+<span class="p">});</span>
+
+</pre>
+</div>
+
+
+<p>This feature is still a work in progress. As of this writing you'll have
+to manage whether or not you need to create the mapping, mongoosastic
+will make no assumptions and simply attempt to create the mapping. If
+the mapping already exists, an Exception detailing such will be
+populated in the <code>err</code> argument. </p>
+
+<h3>Advanced Queries</h3>
+
+<p>The full query DSL of elasticsearch is exposed through the search
+method. For example, if you wanted to find all people between ages 21
+and 30:</p>
+
+<div class="highlight">
+<pre><span class="nx">Person</span><span class="p">.</span><span class="nx">search</span><span class="p">({</span>
+  <span class="nx">query</span><span class="o">:</span><span class="p">{</span>
+    <span class="nx">range</span><span class="o">:</span> <span class="p">{</span>
+      <span class="nx">age</span><span class="o">:</span><span class="p">{</span>
+        <span class="nx">from</span><span class="o">:</span><span class="mi">21</span>
+      <span class="p">,</span> <span class="nx">to</span><span class="o">:</span> <span class="mi">30</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">people</span><span class="p">){</span>
+   <span class="c1">// all the people who fit the age group are here!   </span>
+<span class="p">});</span>
+
+</pre>
+</div>
+
+
+<p>See the elasticsearch <a href="http://www.elasticsearch.org/guide/reference/query-dsl/">Query DSL</a> docs for more information.</p>
+
+<h3>Hydration</h3>
+
+<p>By default objects returned from performing a search will be the objects
+as is in elastic search. This is useful in cases where only what was
+indexed needs to be displayed (think a list of results) while the actual
+mongoose object contains the full data when viewing one of the results.</p>
+
+<p>However, if you want the results to be actual mongoose objects you can
+provide {hydrate:true} as the second argument to a search call.</p>
+
+<div class="highlight">
+<pre>
+<span class="nx">User</span><span class="p">.</span><span class="nx">search</span><span class="p">({</span><span class="nx">query</span><span class="o">:</span><span class="s2">"john"</span><span class="p">},</span> <span class="p">{</span><span class="nx">hydrate</span><span class="o">:</span><span class="kc">true</span><span class="p">},</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// results here</span>
+<span class="p">});</span>
+
+</pre>
+</div>
+
+
+<p>Note this will be a degree slower as it will perform an elasticsearch
+query and then do a query against mongodb for all the ids returned from
+the search result. </p>
+
+<p>You can also default this to always be the case by providing it as a
+plugin option:</p>
+
+<div class="highlight">
+<pre><span class="kd">var</span> <span class="nx">User</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Schema</span><span class="p">({</span>
+    <span class="nx">name</span><span class="o">:</span> <span class="p">{</span><span class="nx">type</span><span class="o">:</span><span class="nb">String</span><span class="p">,</span> <span class="nx">es_indexed</span><span class="o">:</span><span class="kc">true</span><span class="p">}</span>
+  <span class="p">,</span> <span class="nx">email</span><span class="o">:</span> <span class="nb">String</span>
+  <span class="p">,</span> <span class="nx">city</span><span class="o">:</span> <span class="nb">String</span>
+<span class="p">})</span>
+
+<span class="nx">User</span><span class="p">.</span><span class="nx">plugin</span><span class="p">(</span><span class="nx">mongoosastic</span><span class="p">,</span> <span class="p">{</span><span class="nx">hydrate</span><span class="o">:</span><span class="kc">true</span><span class="p">})</span>
+</pre>
+</div>
+
+
+<h3>Model.plugin(mongoosastic, options)</h3>
+
+<p>Options are:</p>
+
+<ul>
+<li>
+<code>index</code> - the index in elastic search to use. Defaults to the
+pluralization of the model name.</li>
+<li>
+<code>type</code>  - the type this model represents in elastic search. Defaults
+to the model name.</li>
+<li>
+<code>host</code> - the host elastic search is running on</li>
+<li>
+<code>hydrate</code> - whether or not to lookup results in mongodb before
+returning results from a search. Defaults to false.</li>
+</ul><h4>Specifying Different Index and Type</h4>
+
+<p>Perhaps you have an existing index and you want to specify the index and
+type used to index your document? No problem!!</p>
+
+<div class="highlight">
+<pre><span class="kd">var</span> <span class="nx">SupervisorSchema</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Schema</span><span class="p">({</span>
+  <span class="nx">name</span><span class="o">:</span> <span class="nb">String</span>
+<span class="p">,</span> <span class="nx">department</span><span class="o">:</span> <span class="nb">String</span>
+<span class="p">});</span>
+
+<span class="nx">SupervisorSchema</span><span class="p">.</span><span class="nx">plugin</span><span class="p">(</span><span class="nx">mongoosastic</span><span class="p">,</span> <span class="p">{</span><span class="nx">index</span><span class="o">:</span> <span class="s1">'employees'</span><span class="p">,</span> <span class="nx">type</span><span class="o">:</span><span class="s1">'manager'</span><span class="p">});</span>
+
+<span class="kd">var</span> <span class="nx">Supervisor</span> <span class="o">=</span> <span class="nx">mongoose</span><span class="p">.</span><span class="nx">model</span><span class="p">(</span><span class="s1">'supervisor'</span><span class="p">,</span> <span class="nx">SupervisorSchema</span><span class="p">);</span>
+
+</pre>
+</div>
+
+
+<h2>Contributing</h2>
+
+<p>Pull requests are always welcome as long as an accompanying test case is
+associated. </p>
+
+<p>This project is configured to use <a href="https://github.com/nvie/gitflow/">git
+flow</a> and the following conventions
+are used:</p>
+
+<ul>
+<li>
+<code>develop</code> - represents current active development and can possibly be
+unstable. </li>
+<li>
+<code>master</code> - pristine copy of repository, represents the currently
+stable release found in the npm index.</li>
+<li>
+<code>feature/**</code> - represents a new feature being worked on</li>
+</ul><p>If you wish to contribute, the only requirement is to: </p>
+
+<ul>
+<li>branch a new feature branch from develop (if you're working on an
+issue, prefix it with the issue number)</li>
+<li>make the changes, with accompanying test cases</li>
+<li>issue a pull request against develop branch</li>
+</ul><p>Although I use git flow and prefix feature branches with "feature/" I
+don't require this for pull requests... all I care is that the feature
+branch name makes sense. </p>
+
+<p>Pulls requests against master or pull requests branched from master will
+be rejected.</p>
+
+<h4>Examples</h4>
+
+<p>Someone picks up issue #39 on selective indexing.</p>
+
+<p>Good branch names:</p>
+
+<ul>
+<li>39-selective-indexing</li>
+<li>feature/39-selective-indexing</li>
+</ul><p>Someone submits a new feature that allows shard configuration:</p>
+
+<p>Good branch names:</p>
+
+<ul>
+<li>feature/shard-configuration</li>
+<li>shard-configuration</li>
+<li>or file an issue, then create a feature branch</li>
+</ul><p>Feel free to ping me if you need help! :)</p>
+
+<h3>Running Tests</h3>
+
+<p>In order to run the tests you will need:</p>
+
+<ul>
+<li>An elasticsearch server running on port 9200</li>
+<li>A mongodb server</li>
+<li><a href="http://visionmedia.github.com/mocha/">mocha</a></li>
+</ul><p>With those installed, running ''npm test'' will run the tests with the
+preferred timeout (which is extended for integration tests. </p>
+
+<h2>License</h2>
+
+<p>Copyright (c) 2012 James R. Carr <a href="mailto:james.r.carr@gmail.com">james.r.carr@gmail.com</a></p>
+
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+
+<p>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+
+<p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+        </article>
+      </div>
+    </div>
+    <footer>
+      <div class="owner">
+      <p><a href="https://github.com/jamescarr" class="avatar"><img src="https://secure.gravatar.com/avatar/f5308d249ed7ff8f96ba888ba707df3f?s=30&amp;d=https://a248.e.akamai.net/assets.github.com%2Fimages%2Fgravatars%2Fgravatar-140.png" width="48" height="48"/></a> <a href="https://github.com/jamescarr">jamescarr</a> maintains <a href="https://github.com/jamescarr/mongoosastic">Mongoosastic</a></p>
+
+
+      </div>
+      <div class="creds">
+        <small>This page generated using <a href="https://pages.github.com/">GitHub Pages</a><br/>theme by <a href="http://twitter.com/jonrohan/">Jon Rohan</a></small>
+      </div>
+    </footer>
+  </div>
+  <div class="current-section">
+    <a href="#top">Scroll to top</a>
+    <a href="https://github.com/jamescarr/mongoosastic/tarball/master" class="tar">tar</a><a href="https://github.com/jamescarr/mongoosastic/zipball/master" class="zip">zip</a><a href="" class="code">source code</a>
+    <p class="name"></p>
+  </div>
+
+            <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-33012035-1");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+</body>
+</html>
